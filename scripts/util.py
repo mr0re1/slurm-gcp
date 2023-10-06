@@ -1662,6 +1662,26 @@ class Lookup:
         ), f"reservation '{name}' not found in '{self.project}'."
         return reservation
 
+    @lru_cache()
+    def zones(self, region):
+        """
+        Returns list of zones names in region.
+        """
+        resp = ensure_execute(
+            self.compute.zones().list(project=self.project, filter=f"name={region}*"))
+        zones = [i["name"] for i in resp["items"]]
+        assert zones, f"no zones found in region '{region}'"
+        return zones
+    
+    def is_single_zone(self, region, deny_list):
+        """
+        Returns name of single zone that satisfies constraints.
+        If more or none zones satisfy constraints, returns None.
+        """
+        match = [z for z in self.zones(region) if z not in deny_list]
+        return match[0] if len(match) == 1 else None
+        
+
 
 # Define late globals
 cfg = load_config_file(CONFIG_FILE)
@@ -1674,3 +1694,4 @@ if not cfg:
         save_config(cfg, CONFIG_FILE)
 
 lkp = Lookup(cfg)
+

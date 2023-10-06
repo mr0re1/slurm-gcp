@@ -182,19 +182,7 @@ def create_instances_request(nodes, placement_group, exclusive_job=None):
     # key is instance name, value overwrites properties
     body.perInstanceProperties = {k: per_instance_properties(k) for k in nodes}
 
-    zones = {
-        **{
-            f"zones/{zone}": {"preference": "ALLOW"}
-            for zone in partition.zone_policy_allow or []
-        },
-        **{
-            f"zones/{zone}": {"preference": "DENY"}
-            for zone in partition.zone_policy_deny or []
-        },
-    }
-    body.locationPolicy.targetShape = cfg.zone_target_shape or "ANY_SINGLE_ZONE"
-    if zones:
-        body.locationPolicy.locations = zones
+    
 
     if lkp.cfg.enable_slurm_gcp_plugins:
         slurm_gcp_plugins.pre_instance_bulk_insert(
@@ -205,9 +193,30 @@ def create_instances_request(nodes, placement_group, exclusive_job=None):
             request_body=body,
         )
 
-    request = util.compute.regionInstances().bulkInsert(
-        project=cfg.project, region=region, body=body.to_dict()
-    )
+    single_zone = lkp.is_single_zone(region, partition.zone_policy_deny)
+    if single_zone: # use zonal method
+        request = util.compute.instances().bulkInsert(
+            project=cfg.project, zone=single_zone, body=body.to_dict()
+        )
+    else: # use regional method
+        locations = {
+            **{
+                f"zones/{zone}": {"preference": "ALLOW"}
+                for zone in partition.zone_policy_allow or []
+            },
+            **{
+                f"zones/{zone}": {"preference": "DENY"}
+                for zone in partition.zone_policy_deny or []
+            },
+        }
+        body.locationPolicy.targetShape = cfg.zone_target_shape or "ANY_SINGLE_ZONE"
+        if locations:
+            body.locationPolicy.locations = locations
+
+        request = util.compute.regionInstances().bulkInsert(
+            project=cfg.project, region=region, body=body.to_dict()
+        )
+
 
     if log.isEnabledFor(logging.DEBUG):
         log.debug(
