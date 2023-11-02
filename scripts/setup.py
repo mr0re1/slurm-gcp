@@ -246,7 +246,10 @@ def local_mounts(mountlist):
     """convert network_storage list of mounts to dict of mounts,
     local_mount as key
     """
-    return {str(Path(m.local_mount).resolve()): m for m in mountlist}
+    log.info(f"local_mounts.mountlist={mountlist}")
+    res = {str(Path(m.local_mount).resolve()): m for m in mountlist}
+    log.info(f"local_mounts.res={res}")
+    return res
 
 
 @lru_cache(maxsize=None)
@@ -265,7 +268,9 @@ def resolve_network_storage(partition_name=None):
         dirs.home,
         dirs.apps,
     )
-
+    log.info(f"default_mounts={default_mounts}")
+    log.info(f"lkp.control_addr={lkp.control_addr}")
+    log.info(f"lkp.control_host={lkp.control_host}")
     # create dict of mounts, local_mount: mount_info
     CONTROL_NFS = {
         "server_ip": lkp.control_addr or lkp.control_host,
@@ -274,6 +279,7 @@ def resolve_network_storage(partition_name=None):
         "fs_type": "nfs",
         "mount_options": "defaults,hard,intr",
     }
+    log.info(f"CONTROL_NFS={CONTROL_NFS}")
 
     # seed mounts with the default controller mounts
     mounts = (
@@ -286,14 +292,20 @@ def resolve_network_storage(partition_name=None):
         if not cfg.disable_default_mounts
         else {}
     )
+    log.info(f"mounts={mounts}")
     # On non-controller instances, entries in network_storage could overwrite
     # default exports from the controller. Be careful, of course
     mounts.update(local_mounts(cfg.network_storage))
+    log.info(f"mounts_2={mounts} \ncfg.network_storage={cfg.network_storage}")
+
     if partition is None:
         mounts.update(local_mounts(cfg.login_network_storage))
+    log.info(f"mounts_3={mounts}")
 
     if partition is not None:
         mounts.update(local_mounts(partition.network_storage))
+    log.info(f"mounts_4={mounts}")
+
     return list(mounts.values())
 
 
@@ -302,6 +314,7 @@ def partition_mounts(mounts):
 
     def internal_mount(mount):
         # NOTE: Valid Lustre server_ip can take the form of '<IP>@tcp'
+        log.info(f"mount={mount}")
         server_ip = mount.server_ip.split("@")[0]
         mount_addr = socket.gethostbyname(server_ip)
         return mount_addr == lkp.control_host_addr
@@ -315,6 +328,8 @@ def setup_network_storage():
     # filter mounts into two dicts, cluster-internal and external mounts
 
     all_mounts = resolve_network_storage()
+    log.info(f"all_mounts={all_mounts}")
+    
     ext_mounts, int_mounts = partition_mounts(all_mounts)
     mounts = ext_mounts
     if lkp.instance_role != "controller":
@@ -755,7 +770,7 @@ def setup_controller(args):
 
 def setup_login(args):
     """run login node setup"""
-    log.info("Setting up login")
+    log.info("Setting up login, epta")
     slurmctld_host = f"{lkp.control_host}"
     if lkp.control_addr:
         slurmctld_host = f"{lkp.control_host}({lkp.control_addr})"

@@ -96,7 +96,7 @@ module "slurm_files" {
   bucket_name                        = var.create_bucket ? module.bucket[0].name : var.bucket_name
   cgroup_conf_tpl                    = var.cgroup_conf_tpl
   cloud_parameters                   = var.cloud_parameters
-  cloudsql_secret                    = try(module.slurm_controller_instance[0].cloudsql_secret, null)
+  cloudsql_secret                    = null # !!! try(module.slurm_controller_instance[0].cloudsql_secret, null)
   controller_startup_scripts         = var.controller_startup_scripts
   controller_startup_scripts_timeout = var.controller_startup_scripts_timeout
   compute_startup_scripts            = var.compute_startup_scripts
@@ -331,7 +331,7 @@ module "slurm_controller_instance" {
   enable_cleanup_compute = var.enable_cleanup_compute
 
   depends_on = [
-    module.bucket,
+    module.slurm_files,
   ]
 }
 

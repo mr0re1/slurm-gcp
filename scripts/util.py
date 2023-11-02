@@ -344,6 +344,7 @@ compute = compute_service()
 
 def load_config_data(config):
     """load dict-like data into a config object"""
+    log.info(f"config={config}")
     cfg = NSDict(config)
     if not cfg.slurm_log_dir:
         cfg.slurm_log_dir = dirs.log
@@ -1348,10 +1349,14 @@ class Lookup:
 
     @property
     def control_addr(self):
+        log.info(f"self.cfg={self.cfg}")
+        log.info(f"control_addr={self.cfg.slurm_control_addr}")
         return self.cfg.slurm_control_addr
 
     @property
     def control_host(self):
+        log.info(f"self.cfg={self.cfg}")
+        log.info(f"slurm_control_host={self.cfg.slurm_control_host}")
         return self.cfg.slurm_control_host
 
     @cached_property
